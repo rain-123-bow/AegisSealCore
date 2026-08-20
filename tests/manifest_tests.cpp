@@ -103,7 +103,9 @@ aegis::seal::detail::Manifest parse(const std::vector<std::uint8_t>& bytes) {
 void test_valid_manifest_is_decoded() {
     const auto manifest = parse(valid_manifest_bytes());
     require(manifest.context.project_id.front() == 0x10, "project ID must be decoded");
-    require(manifest.context.run_id.back() == 0x4f, "run ID must be decoded");
+    require(
+        manifest.context.seal_chain_id.back() == 0x4f,
+        "seal-chain ID must be decoded");
     require(manifest.context.sequence == 0, "sequence must be decoded");
     require(manifest.entries.size() == 1, "file count must be decoded");
     require(manifest.entries[0].path == "src/main.cpp", "path must be decoded");

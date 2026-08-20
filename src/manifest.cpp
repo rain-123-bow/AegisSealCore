@@ -91,7 +91,7 @@ Manifest read_manifest(std::istream& input, const ManifestLimits& limits) {
 
         Manifest manifest{};
         read_exact(input, manifest.context.project_id);
-        read_exact(input, manifest.context.run_id);
+        read_exact(input, manifest.context.seal_chain_id);
         manifest.context.sequence = read_little_endian<std::uint64_t>(input);
         read_exact(input, manifest.context.previous_seal);
 

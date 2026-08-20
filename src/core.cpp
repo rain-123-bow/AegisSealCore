@@ -130,9 +130,8 @@ void validate_utf8(const std::string_view value) {
 }
 
 void validate_path(const std::string& path) {
-    const bool in_scope = path.starts_with("src/") || path.starts_with("include/");
-    if (!in_scope || path.ends_with('/')) {
-        throw SealError{"ASC-1 path is outside src/ or include/: " + path};
+    if (path.empty() || path.starts_with('/') || path.ends_with('/')) {
+        throw SealError{"ASC-1 path is not a normalized relative file path: " + path};
     }
     if (path.find('\\') != std::string::npos ||
         path.find('\0') != std::string::npos ||
@@ -190,7 +189,7 @@ void validate_context(const Context& context) {
 Seal compute_seal_impl(const Context& context, const std::vector<FileEntry>& entries) {
     validate_context(context);
     if (entries.empty()) {
-        throw SealError{"ASC-1 requires at least one core file"};
+        throw SealError{"ASC-1 requires at least one file entry"};
     }
 
     std::vector<const FileEntry*> sorted_entries;
@@ -210,7 +209,7 @@ Seal compute_seal_impl(const Context& context, const std::vector<FileEntry>& ent
 
     const auto keys = derive_keys();
     auto left = detail::hmac_sha512(
-        bytes(keys.left), {bytes(context.project_id), bytes(context.run_id)});
+        bytes(keys.left), {bytes(context.project_id), bytes(context.seal_chain_id)});
     const auto sequence = little_endian64(context.sequence);
     auto right = detail::hmac_sha512(
         bytes(keys.right), {bytes(sequence), bytes(context.previous_seal)});
@@ -254,7 +253,7 @@ Seal compute_seal_impl(const Context& context, const std::vector<FileEntry>& ent
     const auto total_size = little_endian64(total_content_bytes);
     return detail::hmac_sha256(
         bytes(keys.final),
-        {bytes(version), bytes(context.project_id), bytes(context.run_id), bytes(sequence),
+        {bytes(version), bytes(context.project_id), bytes(context.seal_chain_id), bytes(sequence),
          bytes(context.previous_seal), bytes(file_count), bytes(total_size), bytes(left),
          bytes(right)});
 }

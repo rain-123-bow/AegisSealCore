@@ -14,7 +14,7 @@ using Seal = std::array<std::uint8_t, 32>;
 
 struct Context {
     Identifier project_id{};
-    Identifier run_id{};
+    Identifier seal_chain_id{};
     std::uint64_t sequence{};
     Seal previous_seal{};
 };

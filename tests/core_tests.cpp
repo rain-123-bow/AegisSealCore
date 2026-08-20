@@ -47,7 +47,7 @@ std::string path_with_bytes(const std::initializer_list<std::uint8_t> bytes) {
 void test_logical_order_is_canonical() {
     aegis::seal::Context context{
         .project_id = identifier(0x10),
-        .run_id = identifier(0x40),
+        .seal_chain_id = identifier(0x40),
         .sequence = 0,
         .previous_seal = {},
     };
@@ -70,7 +70,7 @@ void test_logical_order_is_canonical() {
 void test_every_bound_field_changes_the_seal() {
     const aegis::seal::Context genesis{
         .project_id = identifier(0x10),
-        .run_id = identifier(0x40),
+        .seal_chain_id = identifier(0x40),
         .sequence = 0,
         .previous_seal = {},
     };
@@ -90,7 +90,7 @@ void test_every_bound_field_changes_the_seal() {
     changed_entries[1].path = "src/entry.cpp";
     require(
         baseline != aegis::seal::compute_seal(genesis, changed_entries),
-        "a renamed core file must change the seal");
+        "a renamed file entry must change the seal");
 
     auto changed_context = genesis;
     changed_context.project_id[0] ^= 0x01;
@@ -99,10 +99,10 @@ void test_every_bound_field_changes_the_seal() {
         "project identity must be bound into the seal");
 
     changed_context = genesis;
-    changed_context.run_id[0] ^= 0x01;
+    changed_context.seal_chain_id[0] ^= 0x01;
     require(
         baseline != aegis::seal::compute_seal(changed_context, entries),
-        "run identity must be bound into the seal");
+        "seal-chain identity must be bound into the seal");
 
     aegis::seal::Context chained = genesis;
     chained.sequence = 1;
@@ -134,16 +134,16 @@ void test_every_bound_field_changes_the_seal() {
 void test_malformed_input_is_rejected() {
     const aegis::seal::Context genesis{
         .project_id = identifier(0x10),
-        .run_id = identifier(0x40),
+        .seal_chain_id = identifier(0x40),
         .sequence = 0,
         .previous_seal = {},
     };
     require_seal_error(
         [&] { static_cast<void>(aegis::seal::compute_seal(genesis, {})); },
-        "an empty core file set must be rejected");
+        "an empty file-entry set must be rejected");
 
     const std::vector<std::string> invalid_paths{
-        "README.md",
+        "",
         "/src/main.cpp",
         "src\\main.cpp",
         "src//main.cpp",
@@ -165,7 +165,7 @@ void test_malformed_input_is_rejected() {
                 static_cast<void>(aegis::seal::compute_seal(
                     genesis, {{path, {'x'}}}));
             },
-            "a malformed or out-of-scope path must be rejected");
+            "a malformed path must be rejected");
     }
 
     require_seal_error(
@@ -195,10 +195,35 @@ void test_malformed_input_is_rejected() {
         "a positive sequence must carry a previous seal");
 }
 
+void test_scope_is_defined_by_the_caller() {
+    const aegis::seal::Context context{
+        .project_id = identifier(0x10),
+        .seal_chain_id = identifier(0x40),
+        .sequence = 0,
+        .previous_seal = {},
+    };
+    const std::vector<aegis::seal::FileEntry> entries{
+        {"CMakeLists.txt", {'c', 'm', 'a', 'k', 'e'}},
+        {"config/runtime.json", {'{', '}'}},
+        {"plugins/production.json", {'[', ']'}},
+    };
+
+    try {
+        const auto seal = aegis::seal::compute_seal(context, entries);
+        require(
+            aegis::seal::verify_seal(context, entries, seal),
+            "the core must accept normalized runtime-scope paths selected by the caller");
+    } catch (const aegis::seal::SealError&) {
+        require(
+            false,
+            "the core must accept normalized runtime-scope paths selected by the caller");
+    }
+}
+
 void test_valid_multibyte_utf8_paths_are_canonical() {
     const aegis::seal::Context context{
         .project_id = identifier(0x30),
-        .run_id = identifier(0x70),
+        .seal_chain_id = identifier(0x70),
         .sequence = 0,
         .previous_seal = {},
     };
@@ -222,7 +247,7 @@ void test_valid_multibyte_utf8_paths_are_canonical() {
 void test_seal_text_is_strict_and_round_trips() {
     const aegis::seal::Context context{
         .project_id = identifier(0x10),
-        .run_id = identifier(0x40),
+        .seal_chain_id = identifier(0x40),
         .sequence = 0,
         .previous_seal = {},
     };
@@ -248,7 +273,7 @@ void test_seal_text_is_strict_and_round_trips() {
 void test_fixed_vector_locks_zero_based_file_ordinal() {
     const aegis::seal::Context context{
         .project_id = identifier(0x10),
-        .run_id = identifier(0x40),
+        .seal_chain_id = identifier(0x40),
         .sequence = 0,
         .previous_seal = {},
     };
@@ -273,7 +298,7 @@ void test_fixed_vector_locks_zero_based_file_ordinal() {
 void test_large_content_is_deterministic_and_fully_bound() {
     const aegis::seal::Context context{
         .project_id = identifier(0x20),
-        .run_id = identifier(0x60),
+        .seal_chain_id = identifier(0x60),
         .sequence = 0,
         .previous_seal = {},
     };
@@ -298,6 +323,7 @@ void test_large_content_is_deterministic_and_fully_bound() {
 }  // namespace
 
 int main() {
+    test_scope_is_defined_by_the_caller();
     test_logical_order_is_canonical();
     test_every_bound_field_changes_the_seal();
     test_malformed_input_is_rejected();

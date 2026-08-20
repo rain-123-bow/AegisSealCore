@@ -2,7 +2,7 @@
 
 ## Objective
 
-Build a private Windows-native sealing construction for Aegis. ASC-1 detects changes to the normalized `src/**` and `include/**` file set by comparing a chained 256-bit seal stored by the caller in the reasoning ledger.
+Build a private Windows-native sealing construction for Aegis. ASC-1 detects changes to normalized relative file entries selected by the caller's approved scope policy by comparing a chained 256-bit seal stored by the caller in the reasoning ledger.
 
 ASC-1 is a low-cost tamper tripwire. It is not a cryptographic security boundary and does not claim resistance to expert reverse engineering or direct use of the local seal generator.
 
@@ -11,7 +11,7 @@ ASC-1 is a low-cost tamper tripwire. It is not a cryptographic security boundary
 - Target: Windows 11 x64.
 - Toolchain: C++20, MSVC, CMake, Windows CNG.
 - Dependencies: Windows system libraries only.
-- Input scope: normalized entries below `src/` and `include/` only.
+- Input scope: normalized relative file entries selected and supplied by the caller.
 - Output: `ASC1:` followed by 64 lowercase hexadecimal characters.
 - Identity: project and run identifiers; no developer identity or developer-held key.
 - Hidden material: one ASC-1 release pepper compiled into the native component.
@@ -23,7 +23,7 @@ ASC-1 is a low-cost tamper tripwire. It is not a cryptographic security boundary
 ```cpp
 struct Context {
     std::array<std::uint8_t, 16> project_id;
-    std::array<std::uint8_t, 16> run_id;
+    std::array<std::uint8_t, 16> seal_chain_id;
     std::uint64_t sequence;
     std::array<std::uint8_t, 32> previous_seal;
 };
@@ -34,7 +34,7 @@ struct FileEntry {
 };
 ```
 
-Paths use strict, well-formed UTF-8 bytes and `/`. No Unicode normalization is performed. Entries are sorted by unsigned path bytes inside the core. Duplicate paths, invalid UTF-8, absolute paths, empty segments, `.`, `..`, backslashes, NUL bytes, paths outside `src/` and `include/`, and empty file sets are rejected.
+Paths use strict, well-formed UTF-8 bytes and `/`. No Unicode normalization is performed. Entries are sorted by unsigned path bytes inside the core. Duplicate paths, invalid UTF-8, absolute paths, empty paths or segments, `.`, `..`, backslashes, NUL bytes, colons, trailing separators, and empty file sets are rejected. Directory or file-type scope is intentionally outside the core and must be enforced by the caller.
 
 Sequence zero requires an all-zero previous seal. A positive sequence requires a non-zero previous seal.
 
@@ -61,7 +61,7 @@ leaf[j] = HMAC-SHA512(
 Two 512-bit states are initialized and cross-folded. For zero-based file ordinal `j = 0..n-1`, the first file encodes `LE64(0)`:
 
 ```text
-L[0] = HMAC-SHA512(K_left,  project_id || run_id)
+L[0] = HMAC-SHA512(K_left,  project_id || seal_chain_id)
 R[0] = HMAC-SHA512(K_right, LE64(sequence) || previous_seal)
 
 L[j+1] = HMAC-SHA512(
@@ -80,7 +80,7 @@ The final 256-bit seal is:
 ```text
 HMAC-SHA256(
     K_final,
-    "ASC1" || project_id || run_id || LE64(sequence) || previous_seal ||
+    "ASC1" || project_id || seal_chain_id || LE64(sequence) || previous_seal ||
     LE64(file_count) || LE64(total_content_bytes) || L[n] || R[n]
 )
 ```
@@ -101,7 +101,7 @@ The CLI consumes one self-contained binary manifest. Numeric fields are little-e
 ```text
 8 bytes   magic: 41 53 43 31 4d 46 0d 0a  ("ASC1MF\r\n")
 16 bytes  project_id
-16 bytes  run_id
+16 bytes  seal_chain_id
 8 bytes   sequence
 32 bytes  previous_seal
 4 bytes   file_count
@@ -154,7 +154,7 @@ docs/ASC1_SPEC.md            Normative ASC-1 contract
 - Debug and Release builds succeed with MSVC warnings treated as errors.
 - All CTest tests pass in both configurations.
 - Identical logical input has identical output regardless of supplied entry order.
-- Any tested change to file path, content, project ID, run ID, sequence, or previous seal changes the output.
+- Any tested change to file path, content, project ID, seal-chain ID, sequence, or previous seal changes the output.
 - Output differs from raw SHA-256 and truncated SHA-512 of the canonical test payload.
 - No third-party dependency, network call, implicit reseal, or fallback acceptance exists.
 

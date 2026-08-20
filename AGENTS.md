@@ -5,7 +5,7 @@
 - Windows 11 x64 only.
 - C++20, MSVC, CMake, Windows CNG.
 - Produce a deterministic ASC-1 sealing core and a small native CLI.
-- The caller supplies only normalized `src/**` and `include/**` entries.
+- The caller supplies normalized relative file entries selected by its approved scope policy.
 
 ## Commands
 

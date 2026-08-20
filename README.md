@@ -2,7 +2,7 @@
 
 Private source for the Windows-native ASC-1 sealing component used by Aegis.
 
-ASC-1 deterministically binds normalized `src/**` and `include/**` entries to project, run, sequence, and previous-seal context. It is a low-cost tamper tripwire, not a production cryptographic security boundary.
+ASC-1 deterministically binds caller-selected normalized relative file entries to project, seal-chain, sequence, and previous-seal context. Scope policy remains the caller's responsibility. ASC-1 is a low-cost tamper tripwire, not a production cryptographic security boundary.
 
 ## Build and test
 
